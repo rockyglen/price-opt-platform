@@ -1,0 +1,9 @@
+# render.yaml
+services:
+  - type: web
+    name: price-ml-api
+    env: python
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "uvicorn src.inference.inference_api:app --host 0.0.0.0 --port 8000"
+    envVars:
+      - fromDotEnv: true
