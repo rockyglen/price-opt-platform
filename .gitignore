@@ -8,8 +8,7 @@ venv/
 .mlruns/
 .dvc/
 data/
-*.joblib
-*.pkl
+
 
 # VSCode
 .vscode/

@@ -2,7 +2,6 @@ import os
 import joblib
 import pandas as pd
 import uvicorn
-import mlflow
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from pydantic import BaseModel
@@ -11,14 +10,7 @@ from enum import Enum
 # === Load environment variables ===
 load_dotenv()
 
-# === Required ENV VARS ===
-MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI")
-MLFLOW_EXPERIMENT_NAME = os.getenv("MLFLOW_EXPERIMENT_NAME")
-MLFLOW_TRACKING_USERNAME = os.getenv("MLFLOW_TRACKING_USERNAME")
-MLFLOW_TRACKING_PASSWORD = os.getenv("MLFLOW_TRACKING_PASSWORD")
-MODEL_URI = os.getenv("MODEL_URI")  # e.g., models:/price-optimizer/Production
-
-# === Local Paths ===
+# === Local paths ===
 LOCAL_MODEL_PATH = "src/model/latest_model.joblib"
 LOCAL_FEATURE_ORDER_PATH = "src/model/feature_order.pkl"
 
@@ -69,32 +61,6 @@ class InferenceRequest(BaseModel):
     time_of_day: TimeOfDay
     day_of_week: DayOfWeek
     season: Season
-
-# === Configure MLflow ===
-os.environ["MLFLOW_TRACKING_USERNAME"] = MLFLOW_TRACKING_USERNAME
-os.environ["MLFLOW_TRACKING_PASSWORD"] = MLFLOW_TRACKING_PASSWORD
-mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
-
-# === Download Model + Feature Order at Runtime ===
-def download_model_from_mlflow():
-    print("📥 Downloading model from MLflow...")
-    try:
-        local_dir = mlflow.artifacts.download_artifacts(artifact_uri=MODEL_URI)
-        model_file_path = os.path.join(local_dir, "model.joblib")  # Adjust if different
-        feature_order_path = os.path.join(local_dir, "feature_order.pkl")  # Adjust if different
-
-        if not os.path.exists(model_file_path) or not os.path.exists(feature_order_path):
-            raise FileNotFoundError("❌ Required model artifacts missing in MLflow.")
-
-        os.makedirs(os.path.dirname(LOCAL_MODEL_PATH), exist_ok=True)
-        os.replace(model_file_path, LOCAL_MODEL_PATH)
-        os.replace(feature_order_path, LOCAL_FEATURE_ORDER_PATH)
-
-        print("✅ Model + Feature order downloaded successfully.")
-    except Exception as e:
-        raise RuntimeError(f"❌ Failed to download model from MLflow: {str(e)}")
-
-download_model_from_mlflow()
 
 # === Load Feature Order ===
 if not os.path.exists(LOCAL_FEATURE_ORDER_PATH):
