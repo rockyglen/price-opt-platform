@@ -1,9 +1,17 @@
-# render.yaml
 services:
   - type: web
-    name: price-ml-api
+    name: pricing-ml-api
     env: python
-    buildCommand: "pip install -r requirements.txt"
-    startCommand: "uvicorn src.inference.inference_api:app --host 0.0.0.0 --port 8000"
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn src.inference.inference_api:app --host 0.0.0.0 --port $PORT
     envVars:
-      - fromDotEnv: true
+      - key: MODEL_URI
+        fromEnvVar: MODEL_URI
+      - key: MLFLOW_TRACKING_URI
+        fromEnvVar: MLFLOW_TRACKING_URI
+      - key: MLFLOW_TRACKING_USERNAME
+        fromEnvVar: MLFLOW_TRACKING_USERNAME
+      - key: MLFLOW_TRACKING_PASSWORD
+        fromEnvVar: MLFLOW_TRACKING_PASSWORD
+      - key: PORT
+        value: 8000
