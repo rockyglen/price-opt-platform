@@ -15,4 +15,15 @@ A full-stack machine learning platform that predicts the **conversion probabilit
 ---
 
 
+## 🧪 Getting Started Locally
+
+### 1. Clone and Setup
+
+```bash
+git clone https://github.com/rockyglen/price-opt-platform.git
+cd price-opt-platform
+python -m venv venv
+source venv/bin/activate     
+pip install -r requirements.txt
+
 
