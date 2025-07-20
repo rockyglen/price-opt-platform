@@ -33,6 +33,19 @@ pip install -r requirements.txt
 python src/train/train_model.py
 ```
 
+### 3. Start Backend API
+
+```bash
+uvicorn src.inference.inference_api:app --host 0.0.0.0 --port 8000
+```
+
+# ☁️ Deployment  
+Backend on Render.com  
+Connect GitHub repo  
+
+Use render.yaml for config  
+
+Set up environment variables securely on Render dashboard  
 
 
 
