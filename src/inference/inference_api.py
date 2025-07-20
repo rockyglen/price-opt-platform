@@ -2,6 +2,7 @@ import os
 import joblib
 import pandas as pd
 import uvicorn
+import mlflow
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from pydantic import BaseModel
@@ -10,8 +11,16 @@ from enum import Enum
 # === Load environment variables ===
 load_dotenv()
 
-MODEL_PATH = "src/model/latest_model.joblib"
-FEATURE_ORDER_PATH = "src/model/feature_order.pkl"
+# === Required ENV VARS ===
+MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI")
+MLFLOW_EXPERIMENT_NAME = os.getenv("MLFLOW_EXPERIMENT_NAME")
+MLFLOW_TRACKING_USERNAME = os.getenv("MLFLOW_TRACKING_USERNAME")
+MLFLOW_TRACKING_PASSWORD = os.getenv("MLFLOW_TRACKING_PASSWORD")
+MODEL_URI = os.getenv("MODEL_URI")  # e.g., models:/price-optimizer/Production
+
+# === Local Paths ===
+LOCAL_MODEL_PATH = "src/model/latest_model.joblib"
+LOCAL_FEATURE_ORDER_PATH = "src/model/feature_order.pkl"
 
 # === FastAPI App ===
 app = FastAPI(title="Pricing ML Inference API")
@@ -61,17 +70,41 @@ class InferenceRequest(BaseModel):
     day_of_week: DayOfWeek
     season: Season
 
+# === Configure MLflow ===
+os.environ["MLFLOW_TRACKING_USERNAME"] = MLFLOW_TRACKING_USERNAME
+os.environ["MLFLOW_TRACKING_PASSWORD"] = MLFLOW_TRACKING_PASSWORD
+mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
+
+# === Download Model + Feature Order at Runtime ===
+def download_model_from_mlflow():
+    print("📥 Downloading model from MLflow...")
+    try:
+        local_dir = mlflow.artifacts.download_artifacts(artifact_uri=MODEL_URI)
+        model_file_path = os.path.join(local_dir, "model.joblib")  # Adjust if different
+        feature_order_path = os.path.join(local_dir, "feature_order.pkl")  # Adjust if different
+
+        if not os.path.exists(model_file_path) or not os.path.exists(feature_order_path):
+            raise FileNotFoundError("❌ Required model artifacts missing in MLflow.")
+
+        os.makedirs(os.path.dirname(LOCAL_MODEL_PATH), exist_ok=True)
+        os.replace(model_file_path, LOCAL_MODEL_PATH)
+        os.replace(feature_order_path, LOCAL_FEATURE_ORDER_PATH)
+
+        print("✅ Model + Feature order downloaded successfully.")
+    except Exception as e:
+        raise RuntimeError(f"❌ Failed to download model from MLflow: {str(e)}")
+
+download_model_from_mlflow()
+
 # === Load Feature Order ===
-if not os.path.exists(FEATURE_ORDER_PATH):
-    raise FileNotFoundError(f"❌ Feature order file not found at: {FEATURE_ORDER_PATH}")
-feature_order = joblib.load(FEATURE_ORDER_PATH)
+if not os.path.exists(LOCAL_FEATURE_ORDER_PATH):
+    raise FileNotFoundError(f"❌ Feature order file not found at: {LOCAL_FEATURE_ORDER_PATH}")
+feature_order = joblib.load(LOCAL_FEATURE_ORDER_PATH)
 
 # === Load Model ===
-if not os.path.exists(MODEL_PATH):
-    raise FileNotFoundError(f"❌ Trained model not found at: {MODEL_PATH}")
 try:
     print("🔁 Loading model from local joblib...")
-    model = joblib.load(MODEL_PATH)
+    model = joblib.load(LOCAL_MODEL_PATH)
     print("✅ Model loaded successfully from joblib!")
 except Exception as e:
     raise RuntimeError(f"❌ Failed to load model: {e}")
@@ -106,6 +139,6 @@ def predict(request: InferenceRequest):
     except Exception as e:
         return {"error": f"❌ Prediction failed: {str(e)}"}
 
-# === Run Server Locally ===
+# === Run Server Locally (for dev only) ===
 if __name__ == "__main__":
     uvicorn.run("src.inference.inference_api:app", host="0.0.0.0", port=8000, reload=True)
